@@ -40,7 +40,50 @@ const ownerSchema = new Schema({
     },
     gstIn: {
         type: String,
+    },
+    refreshToken: {
+        type: String
     }
 
 })
+
+ownerSchema.pre("save", async function (next) {
+    // console.log("before hasing", this.password)
+    if (!this.isModified("password")) return next();
+    this.password = await bcrypt.hash(this.password, 10)
+    next();
+})
+
+ownerSchema.methods.isPasswordCorrect = async function (password) {
+    // console.log("after hashinf", this.password);
+    return await bcrypt.compare(password, this.password);
+}
+
+ownerSchema.methods.generateAccessToken = async function () {
+    return jwt.sign(
+        {
+            _id: this._id,
+            username: this.username,
+            email: this.email
+        },
+        process.env.ACCESS_TOKEN_SECRET
+        ,
+        {
+            expiresIn: process.env.ACCESS_TOKEN_EXPIRY
+        }
+    )
+}
+
+ownerSchema.methods.generateRefreshToken = async function () {
+    return jwt.sign(
+        {
+            _id: this._id,
+        },
+        process.env.REFRESH_TOKEN_SECRET
+        ,
+        {
+            expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+        }
+    )
+}
 export const Owner = mongoose.model("Owner", ownerSchema)
